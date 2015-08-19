@@ -110,6 +110,7 @@ typedef struct
    int width;                          /// Requested width of image
    int height;                         /// requested height of image
    int framerate;                      /// Requested frame rate (fps)
+   int framerateden;                      /// Requested frame rate denominator (fps)
    int quality;
    RASPICAM_CAMERA_PARAMETERS camera_parameters; /// Camera setup parameters
 
@@ -197,6 +198,15 @@ static void get_status(RASPIVID_STATE *state)
    }else{
 	state->framerate = 30;
 	ros::param::set("~framerate", 30);
+   }
+
+   if (ros::param::get("~framerateden", temp )){
+	if(temp > 0)
+		state->framerateden = temp;
+	else	state->framerateden = 1;
+   }else{
+	state->framerateden = 1;
+	ros::param::set("~framerateden", 1);
    }
 
    if (ros::param::get("~tf_prefix",  str)){
@@ -361,7 +371,7 @@ static MMAL_COMPONENT_T *create_camera_component(RASPIVID_STATE *state)
    format->es->video.crop.width = state->width;
    format->es->video.crop.height = state->height;
    format->es->video.frame_rate.num = state->framerate;
-   format->es->video.frame_rate.den = VIDEO_FRAME_RATE_DEN;
+   format->es->video.frame_rate.den = state->framerateden;//VIDEO_FRAME_RATE_DEN;
 
    status = mmal_port_format_commit(video_port);
 
@@ -690,7 +700,7 @@ int start_capture(RASPIVID_STATE *state){
 	if(!(state->isInit)) init_cam(state);
 	MMAL_PORT_T *camera_video_port   = state->camera_component->output[MMAL_CAMERA_VIDEO_PORT];
 	MMAL_PORT_T *encoder_output_port = state->encoder_component->output[0];
-	ROS_INFO("Starting video capture (%d, %d, %d, %d)\n", state->width, state->height, state->quality, state->framerate);
+	ROS_INFO("Starting video capture (%d, %d, %d, %f)\n", state->width, state->height, state->quality, (float)state->framerate/(float)state->framerateden);
 
       	if (mmal_port_parameter_set_boolean(camera_video_port, MMAL_PARAMETER_CAPTURE, 1) != MMAL_SUCCESS)
       	{
